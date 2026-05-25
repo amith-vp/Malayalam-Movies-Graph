@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Malayalam Movies Graph</title>
+  <style>
+    :root { color-scheme: dark; --bg:#000; --panel:#050505; --panel2:#0d0d0d; --line:#242424; --text:#f2f2f2; --muted:#8f8f8f; --cyan:#bdbdbd; --red:#e0e0e0; --gold:#b8b8b8; --blue:#a6a6a6; }
+    * { box-sizing:border-box; }
+    body { margin:0; overflow:hidden; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:54px; display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--line); background:#030303; }
+    h1 { margin:0; font-size:18px; white-space:nowrap; }
+    .meta,.hint,.sub { color:var(--muted); font-size:12px; line-height:1.45; }
+    .shell { height:calc(100vh - 54px); min-height:0; display:grid; grid-template-columns:304px 1fr 318px; }
+    aside { min-height:0; overflow:auto; overflow-x:hidden; background:#050505; border-right:1px solid var(--line); }
+    aside.detail { border-right:0; border-left:1px solid var(--line); }
+    .panel { display:grid; gap:12px; padding:14px; min-width:0; }
+    .stage { position:relative; min-width:0; min-height:0; }
+    canvas { width:100%; height:100%; display:block; cursor:grab; }
+    label { display:block; margin:0 0 6px; color:var(--muted); font-size:12px; }
+    input,select,button { width:100%; min-width:0; min-height:34px; border:1px solid var(--line); border-radius:6px; background:#080808; color:var(--text); padding:7px 9px; font:inherit; }
+    button { cursor:pointer; }
+    button:hover,input:focus,select:focus { border-color:#777; outline:none; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .result-list,.neighbor-list { display:grid; gap:6px; }
+    .result,.neighbor { min-width:0; text-align:left; background:#0a0a0a; border:1px solid #1d1d1d; border-radius:6px; padding:8px 9px; cursor:pointer; overflow:hidden; }
+    .result:hover,.neighbor:hover,.result.active { border-color:#aaa; background:#111; }
+    .title { display:block; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sub,.hint,.meta,h2,label,.pill { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; overflow-wrap:anywhere; }
+    .sub,.hint { display:block; }
+    .main-link { color:#ddd; }
+    .cluster-key { display:grid; gap:6px; }
+    .cluster-key span { display:flex; align-items:center; gap:6px; min-width:0; color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cluster-swatch { width:10px; height:10px; flex:0 0 auto; border-radius:50%; box-shadow:none; }
+    .movie-swatch { border-radius:2px; }
+    .axis-note { margin-top:8px; display:grid; gap:4px; color:var(--muted); font-size:12px; line-height:1.45; }
+    .axis-note strong { color:#ddd; font-weight:650; }
+    .identity { display:flex; gap:12px; align-items:flex-start; }
+    .poster { width:88px; aspect-ratio:2/3; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#080808; }
+    h2 { margin:0; font-size:18px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .stat { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px; }
+    .stat strong { display:block; font-size:18px; }
+    .stat span { color:var(--muted); font-size:12px; }
+    .pill-row { display:flex; flex-wrap:wrap; gap:6px; }
+    .pill { min-height:23px; padding:3px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; }
+  
+
+    :root { --bg:#000; --panel:#050505; --panel2:#0d0d0d; --line:#242424; --text:#f2f2f2; --muted:#8f8f8f; --cyan:#bdbdbd; --red:#e0e0e0; --gold:#b8b8b8; --blue:#a6a6a6; }
+    body { background:#000; }
+    header { background:#030303; border-bottom-color:#202020; }
+    aside { background:#050505; }
+    aside.detail { background:#050505; }
+    canvas { background:#000; }
+    input,select,button { background:#080808; border-color:#262626; color:var(--text); }
+    button:hover,input:focus,select:focus { border-color:#777; }
+    .result,.neighbor { background:#0a0a0a; border-color:#1d1d1d; }
+    .result:hover,.neighbor:hover,.result.active { border-color:#aaa; background:#111; }
+    .stat { background:#0a0a0a; border-color:#242424; }
+    .poster { background:#080808; border-color:#242424; }
+    .pill { border-color:#2a2a2a; color:#aaa; }
+    .main-link { color:#ddd; }
+    .cluster-swatch { box-shadow:none; }
+    .axis-note strong { color:#ddd; }
+    .mobile-sheetbar { display:none; }
+    @media (max-width: 1240px) and (min-width: 901px) {
+      .shell { grid-template-columns:minmax(260px,292px) 1fr minmax(270px,304px); }
+      header { padding-inline:12px; }
+      .panel { padding:12px; }
+    }
+    @media (max-width: 900px) {
+      :root { --mobile-bar-h:48px; --mobile-sheet-h:min(34dvh, 340px); }
+      html, body { height:100%; overscroll-behavior:none; }
+      body { height:100dvh; overflow:hidden; }
+      header { height:44px; padding:7px 10px; gap:8px; }
+      h1 { font-size:16px; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+      header .meta { display:none; }
+      .mobile-sheetbar {
+        display:grid;
+        grid-template-columns:1fr 1fr 1.1fr;
+        position:fixed;
+        left:0;
+        right:0;
+        bottom:0;
+        z-index:8;
+        min-height:48px;
+        padding:6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        gap:6px;
+        border-top:1px solid var(--line);
+        background:#030303;
+      }
+      .mobile-sheetbar button {
+        min-height:36px;
+        border-radius:6px;
+        padding:5px 8px;
+        background:#080808;
+        color:var(--muted);
+        border:1px solid var(--line);
+        font-size:13px;
+      }
+      .mobile-sheetbar button.active {
+        color:var(--text);
+        border-color:#aaa;
+        background:#141414;
+      }
+      .shell {
+        height:calc(100dvh - 44px);
+        min-height:0;
+        display:block;
+        position:relative;
+      }
+      .stage {
+        position:absolute;
+        left:0;
+        right:0;
+        top:0;
+        bottom:calc(var(--mobile-bar-h) + var(--mobile-sheet-h));
+        min-height:0;
+        display:block;
+        overflow:hidden;
+      }
+      body[data-panel="collapsed"] .stage { bottom:var(--mobile-bar-h); }
+      canvas { touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+      .shell > aside {
+        position:absolute;
+        left:0;
+        right:0;
+        bottom:var(--mobile-bar-h);
+        top:auto;
+        z-index:4;
+        display:none;
+        height:var(--mobile-sheet-h);
+        border:0;
+        border-top:1px solid var(--line);
+        border-radius:10px 10px 0 0;
+        box-shadow:0 -18px 34px rgba(0,0,0,.5);
+        background:#050505;
+      }
+      .shell > aside .panel {
+        height:100%;
+        align-content:start;
+        overflow:auto;
+        overflow-x:hidden;
+        padding:10px 10px 12px;
+      }
+      body[data-panel="list"] .list-panel,
+      body[data-panel="detail"] aside.detail { display:block; }
+      body[data-panel="collapsed"] .shell > aside { display:none; }
+      .row { grid-template-columns:1fr; }
+      input, select, button { min-height:38px; font-size:16px; }
+      .result-list, .neighbor-list { gap:7px; }
+      .result, .neighbor { padding:10px; }
+      .poster { width:78px; }
+      .stat-grid { grid-template-columns:1fr 1fr; }
+    }
+    @media (max-width: 520px) {
+      :root { --mobile-bar-h:46px; --mobile-sheet-h:32dvh; }
+      .mobile-sheetbar { min-height:46px; padding-top:5px; }
+      .mobile-sheetbar button { font-size:12px; min-height:34px; }
+      .stat-grid { grid-template-columns:1fr; }
+      .identity { gap:10px; }
+      .poster { width:72px; }
+    }
+
+  </style>
+</head>
+<body data-panel="list">
+  <header>
+    <h1>Malayalam Movies Graph</h1>
+    <div class="meta">Most Complete Knowledge Graph of Malayalam Movies</div>
+  </header>
+  <nav class="mobile-sheetbar" aria-label="Network panels">
+    <button type="button" class="active" data-panel="list">Search</button>
+    <button type="button" data-panel="detail">Details</button>
+    <button type="button" data-panel="collapsed">Expand Graph</button>
+  </nav>
+  <div class="shell">
+    <aside class="list-panel" id="listPanel">
+      <div class="panel">
+	        <div><label for="search">Find Actor Or Movie</label><input id="search" type="search" placeholder="Mohanlal, Mammootty, Drishyam..."></div>
+	        <div id="resultSortWrap"><label for="resultSort">Sort List</label><select id="resultSort"><option value="films" selected>Most movies</option><option value="lead">Most lead movies</option></select></div>
+	        <div style="display:none"><select id="layoutMode"><option value="semantic" selected></option></select><select id="semanticYMode"><option value="community" selected></option></select></div>
+        <div class="row" style="display:none">
+          <div><label for="actorColorMode">Actor Color</label><select id="actorColorMode"><option value="role" selected>Career role</option><option value="cluster">Actor cluster</option></select></div>
+          <div><label for="movieColorMode">Movie Color</label><select id="movieColorMode"><option value="genre" selected>Genre family</option><option value="rating">IMDb rating heat</option><option value="votes">Vote popularity</option><option value="cluster">Actor cluster</option></select></div>
+        </div>
+	        <div style="display:none"><label for="edgeMode">Star Link Filter</label><select id="edgeMode"><option value="all" selected>All star links</option><option value="main">Main lead only</option><option value="supporting">Other leads only</option></select></div>
+	        <div style="display:none">
+	          <label for="actorOffsetX">Actor Offset X</label>
+	          <div class="control-line"><input id="actorOffsetX" type="range" min="-3000" max="3000" step="25" value="-1400"><input id="actorOffsetXValue" type="number" min="-3000" max="3000" step="25" value="-1400"></div>
+	        </div>
+	        <div style="display:none">
+	          <label for="actorOffsetY">Actor Offset Y</label>
+	          <div class="control-line"><input id="actorOffsetY" type="range" min="-3000" max="3000" step="25" value="1500"><input id="actorOffsetYValue" type="number" min="-3000" max="3000" step="25" value="1500"></div>
+	        </div>
+	        <div class="row" style="display:none">
+          <div><label for="nodeMode">Nodes</label><select id="nodeMode"><option value="all" selected>All constellation</option><option value="hubs">Major bridges</option><option value="connected">Connected to filter</option></select></div>
+          <div><label for="nodeTypeMode">Node Types</label><select id="nodeTypeMode"><option value="all" selected>Actors + Movies</option><option value="actors">Actors only</option><option value="movies">Movies only</option></select></div>
+        </div>
+        <div style="display:none"><input id="minActorFilms" type="number" min="0" step="1" value="0"></div>
+        <div class="row" style="display:none">
+          <div><label for="minMovieVotes">Min Movie Votes</label><input id="minMovieVotes" type="number" min="0" step="100" value="0"></div>
+          <div><label for="minMovieRating">Min IMDb Rating</label><input id="minMovieRating" type="number" min="0" max="10" step="0.1" value="0" placeholder="0-10"></div>
+        </div>
+        <div style="display:none"><label for="hubLimit">Cluster Anchors</label><select id="hubLimit"><option>36</option><option>55</option><option selected>85</option><option>120</option></select></div>
+        <div class="result-list" id="results"></div>
+      </div>
+    </aside>
+    <main class="stage" id="graphStage">
+      <canvas id="network"></canvas>
+    </main>
+    <aside class="detail" id="detailPanel"><div class="panel" id="detail"></div></aside>
+  </div>
+  <script src="app.js" defer></script>
+</body>
+</html>
