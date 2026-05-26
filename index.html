@@ -46,120 +46,543 @@
     .pill { min-height:23px; padding:3px 7px; border:1px solid var(--line); border-radius:999px; color:var(--muted); font-size:12px; }
   
 
-    :root { --bg:#000; --panel:#050505; --panel2:#0d0d0d; --line:#242424; --text:#f2f2f2; --muted:#8f8f8f; --cyan:#bdbdbd; --red:#e0e0e0; --gold:#b8b8b8; --blue:#a6a6a6; }
-    body { background:#000; }
-    header { background:#030303; border-bottom-color:#202020; }
-    aside { background:#050505; }
-    aside.detail { background:#050505; }
-    canvas { background:#000; }
-    input,select,button { background:#080808; border-color:#262626; color:var(--text); }
-    button:hover,input:focus,select:focus { border-color:#777; }
-    .result,.neighbor { background:#0a0a0a; border-color:#1d1d1d; }
-    .result:hover,.neighbor:hover,.result.active { border-color:#aaa; background:#111; }
-    .stat { background:#0a0a0a; border-color:#242424; }
-    .poster { background:#080808; border-color:#242424; }
-    .pill { border-color:#2a2a2a; color:#aaa; }
-    .main-link { color:#ddd; }
-    .cluster-swatch { box-shadow:none; }
-    .axis-note strong { color:#ddd; }
-    .mobile-sheetbar { display:none; }
+    :root {
+      --bg: #02040a;
+      --panel: rgba(10, 12, 18, 0.68);
+      --panel-solid: #090d16;
+      --panel2: rgba(255, 255, 255, 0.04);
+      --line: rgba(255, 255, 255, 0.08);
+      --text: #f3f5f9;
+      --muted: #9ba3b2;
+      --cyan: #bdbdbd;
+      --red: #e0e0e0;
+      --gold: #b8b8b8;
+      --blue: #a6a6a6;
+      --glass-blur: 24px;
+    }
+    
+    body {
+      background: radial-gradient(circle at 47% 46%, #09111f 0%, #040812 62%, #02040a 100%) !important;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    header {
+      background: rgba(8, 10, 15, 0.75) !important;
+      backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    aside {
+      background: rgba(10, 13, 20, 0.65) !important;
+      backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    aside.detail {
+      background: rgba(10, 13, 20, 0.65) !important;
+      backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border-right: 0 !important;
+    }
+    
+    canvas {
+      background: transparent !important;
+    }
+    
+    /* Scrollbars styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+    
+    /* Elegant and translucent input styling */
+    input, select, button {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border-radius: 10px !important;
+      color: var(--text) !important;
+      padding: 9px 12px !important;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    
+    button {
+      font-weight: 500;
+    }
+    
+    button:hover, input:focus, select:focus {
+      border-color: rgba(255, 255, 255, 0.25) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04) !important;
+      outline: none;
+    }
+    
+    /* Modern translucent card design */
+    .result, .neighbor {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      border-radius: 12px !important;
+      padding: 12px 14px !important;
+      margin-bottom: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    
+    .result:hover, .neighbor:hover, .result.active {
+      border-color: rgba(255, 255, 255, 0.25) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+      transform: translateY(-1px);
+    }
+    
+    .stat {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      border-radius: 12px !important;
+      padding: 12px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    }
+    
+    .poster {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
+      transition: transform 0.2s ease;
+    }
+    
+    .poster:hover {
+      transform: scale(1.03);
+    }
+    
+    .pill {
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      color: var(--muted) !important;
+      border-radius: 20px !important;
+      padding: 4px 10px !important;
+      font-size: 11px !important;
+    }
+    
+    /* Pill button overrides inside detail panel pill-row */
+    .pill-row button {
+      width: auto !important;
+      display: inline-flex !important;
+      align-items: center;
+      min-height: 23px !important;
+      padding: 3px 10px !important;
+      font-size: 11px !important;
+      border-radius: 20px !important;
+      margin: 0 !important;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      color: var(--text) !important;
+      transition: all 0.2s ease;
+    }
+    
+    .pill-row button:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: rgba(255, 255, 255, 0.25) !important;
+    }
+    
+    .main-link {
+      color: #fff !important;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .cluster-swatch {
+      box-shadow: none;
+    }
+    
+    .axis-note strong {
+      color: #fff;
+    }
+    
+    label {
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-size: 11px !important;
+      margin-bottom: 8px !important;
+      color: var(--muted);
+      display: block;
+    }
+    
+    h1, h2, h3 {
+      font-weight: 600;
+      letter-spacing: -0.015em;
+    }
+    
+    /* Header controls inline layout (saves multiple vertical rows) */
+    .header-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .header-controls .pill-action {
+      margin: 0 !important;
+      font-size: 11px !important;
+      padding: 3px 8px !important;
+      min-height: 22px !important;
+      width: auto !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      color: var(--text) !important;
+      border-radius: 20px !important;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .header-controls .pill-action:hover {
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: rgba(255, 255, 255, 0.25) !important;
+    }
+    
+    .header-controls .compact-sort {
+      margin: 0 !important;
+      font-size: 11px !important;
+      padding: 2px 20px 2px 6px !important;
+      min-height: 22px !important;
+      width: auto !important;
+      background-color: rgba(255, 255, 255, 0.04) !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
+      border-radius: 6px !important;
+      cursor: pointer;
+    }
+    
+    .header-controls .pill {
+      margin: 0 !important;
+      font-size: 11px !important;
+      padding: 3px 8px !important;
+      min-height: 22px !important;
+      border-radius: 20px !important;
+      background: rgba(255, 255, 255, 0.04) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    .tmdb-attribution {
+      font-size: 10px !important;
+      color: var(--muted) !important;
+      opacity: 0.45;
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.05);
+      width: 100%;
+      letter-spacing: 0.02em;
+    }
+    
+    /* Mini expand button — hidden on desktop */
+    .mini-expand-btn {
+      display: none !important;
+    }
+    
+    .mobile-sheetbar {
+      display: none;
+    }
+    
     @media (max-width: 1240px) and (min-width: 901px) {
-      .shell { grid-template-columns:minmax(260px,292px) 1fr minmax(270px,304px); }
-      header { padding-inline:12px; }
-      .panel { padding:12px; }
+      .shell { grid-template-columns: minmax(260px,292px) 1fr minmax(270px,304px); }
+      header { padding-inline: 12px; }
+      .panel { padding: 12px; }
     }
+    
     @media (max-width: 900px) {
-      :root { --mobile-bar-h:48px; --mobile-sheet-h:min(34dvh, 340px); }
-      html, body { height:100%; overscroll-behavior:none; }
-      body { height:100dvh; overflow:hidden; }
-      header { height:44px; padding:7px 10px; gap:8px; }
-      h1 { font-size:16px; min-width:0; overflow:hidden; text-overflow:ellipsis; }
-      header .meta { display:none; }
+      :root {
+        --mobile-bar-h: 48px;
+        --mobile-sheet-h: min(100vw, 420px);
+        --mobile-mini-h: 108px;
+      }
+      
+      html, body {
+        height: 100%;
+        overscroll-behavior: none;
+      }
+      
+      body {
+        height: 100dvh;
+        overflow: hidden;
+      }
+      
+      header {
+        height: 44px;
+        padding: 7px 10px;
+        gap: 8px;
+      }
+      
+      h1 {
+        font-size: 16px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      header .meta {
+        display: none;
+      }
+      
       .mobile-sheetbar {
-        display:grid;
-        grid-template-columns:1fr 1fr 1.1fr;
-        position:fixed;
-        left:0;
-        right:0;
-        bottom:0;
-        z-index:8;
-        min-height:48px;
-        padding:6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-        gap:6px;
-        border-top:1px solid var(--line);
-        background:#030303;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1.1fr;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 8;
+        min-height: 48px;
+        padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+        gap: 6px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(10, 12, 18, 0.75);
+        backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
       }
+      
       .mobile-sheetbar button {
-        min-height:36px;
-        border-radius:6px;
-        padding:5px 8px;
-        background:#080808;
-        color:var(--muted);
-        border:1px solid var(--line);
-        font-size:13px;
+        min-height: 36px;
+        border-radius: 10px;
+        padding: 5px 8px;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid transparent;
+        font-size: 13px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
+      
       .mobile-sheetbar button.active {
-        color:var(--text);
-        border-color:#aaa;
-        background:#141414;
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       }
+      
       .shell {
-        height:calc(100dvh - 44px);
-        min-height:0;
-        display:block;
-        position:relative;
+        height: calc(100dvh - 44px);
+        min-height: 0;
+        display: block;
+        position: relative;
       }
+      
       .stage {
-        position:absolute;
-        left:0;
-        right:0;
-        top:0;
-        bottom:calc(var(--mobile-bar-h) + var(--mobile-sheet-h));
-        min-height:0;
-        display:block;
-        overflow:hidden;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: calc(var(--mobile-bar-h) + var(--mobile-sheet-h));
+        min-height: 0;
+        display: block;
+        overflow: hidden;
       }
-      body[data-panel="collapsed"] .stage { bottom:var(--mobile-bar-h); }
-      canvas { touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+      
+      body[data-panel="collapsed"] .stage {
+        bottom: var(--mobile-bar-h);
+      }
+      
+      canvas {
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      
       .shell > aside {
-        position:absolute;
-        left:0;
-        right:0;
-        bottom:var(--mobile-bar-h);
-        top:auto;
-        z-index:4;
-        display:none;
-        height:var(--mobile-sheet-h);
-        border:0;
-        border-top:1px solid var(--line);
-        border-radius:10px 10px 0 0;
-        box-shadow:0 -18px 34px rgba(0,0,0,.5);
-        background:#050505;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: var(--mobile-bar-h);
+        top: auto;
+        z-index: 4;
+        display: none;
+        height: var(--mobile-sheet-h);
+        border: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+        background: rgba(10, 13, 20, 0.72);
+        backdrop-filter: blur(30px) saturate(190%);
+        -webkit-backdrop-filter: blur(30px) saturate(190%);
       }
+      
+      /* aside.detail: overflow hidden clips the panel in mini state; position:absolute from .shell > aside already creates the containing block for the chevron button */
+      aside.detail {
+        overflow: hidden;
+      }
+
+      
+      /* Tighter mobile side/bottom sheet panels */
       .shell > aside .panel {
-        height:100%;
-        align-content:start;
-        overflow:auto;
-        overflow-x:hidden;
-        padding:10px 10px 12px;
+        height: 100%;
+        align-content: start;
+        overflow: auto;
+        overflow-x: hidden;
+        padding: 10px 12px 14px;
+        gap: 8px !important;
       }
+      
       body[data-panel="list"] .list-panel,
-      body[data-panel="detail"] aside.detail { display:block; }
-      body[data-panel="collapsed"] .shell > aside { display:none; }
-      .row { grid-template-columns:1fr; }
-      input, select, button { min-height:38px; font-size:16px; }
-      .result-list, .neighbor-list { gap:7px; }
-      .result, .neighbor { padding:10px; }
-      .poster { width:78px; }
-      .stat-grid { grid-template-columns:1fr 1fr; }
+      body[data-panel="detail"] aside.detail,
+      body[data-panel="mini"] aside.detail {
+        display: block;
+      }
+      
+      body[data-panel="mini"] aside.detail {
+        height: var(--mobile-mini-h) !important;
+        /* overflow hidden is set above on aside.detail already */
+      }
+      
+      body[data-panel="mini"] .stage {
+        bottom: calc(var(--mobile-bar-h) + var(--mobile-mini-h)) !important;
+      }
+      
+      /* In mini state: hide .detail-controls and the neighbor section, show only .identity */
+      body[data-panel="mini"] .detail-controls,
+      body[data-panel="mini"] .detail-neighbors,
+      body[data-panel="mini"] .tmdb-attribution {
+        display: none !important;
+      }
+      
+      /* identity: compact row with poster + name only */
+      .identity {
+        align-items: center !important;
+        gap: 10px !important;
+        padding-right: 48px; /* leave room for chevron button */
+      }
+      
+      .identity h2 {
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+        margin: 0 0 2px 0 !important;
+      }
+      
+      .poster {
+        width: 58px !important;
+        border-radius: 6px !important;
+      }
+      
+      /* The expand/collapse chevron button — absolutely positioned inside aside.detail */
+      .mini-expand-btn {
+        display: flex !important;
+        position: absolute !important;
+        right: 12px !important;
+        top: 16px !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 50% !important;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: var(--text) !important;
+        cursor: pointer;
+        z-index: 20;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: background 0.2s ease, border-color 0.2s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      
+      .mini-expand-btn:hover {
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
+      }
+      
+      /* Rotate chevron: points UP (expand) in mini state, DOWN (collapse) in detail state */
+      body[data-panel="mini"] .mini-expand-btn {
+        transform: rotate(0deg);
+      }
+      
+      body[data-panel="detail"] .mini-expand-btn {
+        transform: rotate(180deg);
+      }
+      
+      body[data-panel="collapsed"] .shell > aside {
+        display: none;
+      }
+      
+      .row {
+        grid-template-columns: 1fr;
+      }
+      
+      /* Compact inputs and buttons on mobile */
+      input, select, button {
+        min-height: 34px !important;
+        font-size: 14px !important;
+        padding: 6px 10px !important;
+      }
+      
+      .result-list, .neighbor-list {
+        gap: 6px;
+      }
+      
+      /* Tighter card padding on mobile */
+      .result, .neighbor {
+        padding: 8px 10px !important;
+      }
+      
+      .stat-grid {
+        grid-template-columns: 1fr 1fr;
+      }
     }
+    
     @media (max-width: 520px) {
-      :root { --mobile-bar-h:46px; --mobile-sheet-h:32dvh; }
-      .mobile-sheetbar { min-height:46px; padding-top:5px; }
-      .mobile-sheetbar button { font-size:12px; min-height:34px; }
-      .stat-grid { grid-template-columns:1fr; }
-      .identity { gap:10px; }
-      .poster { width:72px; }
+      :root {
+        --mobile-bar-h: 46px;
+        --mobile-sheet-h: min(100vw, 400px);
+      }
+      
+      .mobile-sheetbar {
+        min-height: 46px;
+        padding-top: 5px;
+      }
+      
+      .mobile-sheetbar button {
+        font-size: 12px;
+        min-height: 34px;
+      }
+      
+      input, select, button {
+        min-height: 32px !important;
+        font-size: 13px !important;
+      }
+      
+      .stat-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .identity {
+        gap: 10px !important;
+      }
+      
+      .identity h2 {
+        font-size: 15px !important;
+      }
+      
+      .poster {
+        width: 52px !important;
+      }
     }
 
   </style>
@@ -203,7 +626,7 @@
           <div><label for="minMovieRating">Min IMDb Rating</label><input id="minMovieRating" type="number" min="0" max="10" step="0.1" value="0" placeholder="0-10"></div>
         </div>
         <div style="display:none"><label for="hubLimit">Cluster Anchors</label><select id="hubLimit"><option>36</option><option>55</option><option selected>85</option><option>120</option></select></div>
-        <div class="result-list" id="results"></div>
+        <div class="result-list" id="results"></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>
       </div>
     </aside>
     <main class="stage" id="graphStage">

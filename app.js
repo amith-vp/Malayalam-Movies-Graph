@@ -96,6 +96,31 @@ let graph;
     return `${Number(n.degree || 0).toLocaleString()} movies`;
   }
   function selectedMeta(n){return n.type === 'movie' ? movieBrief(n) : actorBrief(n, resultSort.value === 'lead');}
+  function miniMeta(n){
+    if(n.type === 'movie') {
+      const g = genres(n)[0];
+      const line1 = [g, n.year].filter(Boolean).join(' · ');
+      const ratingPart = n.rating ? `★${n.rating}` : '';
+      let votesPart = '';
+      if(n.vote_count) {
+        const v = Number(n.vote_count);
+        if(v >= 1000000) votesPart = `${(v/1000000).toFixed(1).replace(/\\.0$/, '')}M votes`;
+        else if(v >= 1000) votesPart = `${(v/1000).toFixed(1).replace(/\\.0$/, '')}K votes`;
+        else votesPart = `${v} votes`;
+      }
+      const line2 = [ratingPart, votesPart].filter(Boolean).join(' · ');
+      return `<div class="hint-line" style="margin-bottom:1px;">${esc(line1 || 'Movie')}</div><div class="hint-line" style="opacity:0.85;">${esc(line2 || '')}</div>`;
+    } else {
+      const votes = actorVoteTotals.get(n.id) || {votes:0, avgRating:0, first:0, last:0};
+      const span = (votes.first > 0 && votes.last > 0) ? `Active: ${votes.first}–${votes.last}` : '';
+      const line1 = span;
+      const totalFilms = `${Number(n.degree || 0).toLocaleString()} films`;
+      const lead = leadCounts.get(n.id) || 0;
+      const leadFilms = lead ? `${Number(lead).toLocaleString()} leads` : '';
+      const line2 = [totalFilms, leadFilms].filter(Boolean).join(' · ');
+      return `<div class="hint-line" style="margin-bottom:1px;">${esc(line1 || 'Actor')}</div><div class="hint-line" style="opacity:0.85;">${esc(line2 || '')}</div>`;
+    }
+  }
   function imageFor(n){return n.type==='movie'?(n.tmdb_poster_url||n.poster_url):(n.tmdb_profile_url||n.profile_image);}
   function isMainLeadActor(id){return leadCounts.has(id);}
   function semanticYInfo(){
@@ -943,7 +968,7 @@ let graph;
     const mobileFit = window.matchMedia('(max-width: 900px)').matches;
     const pad=mobileFit ? 24 : 60;
     state.bounds = {minX, maxX, minY, maxY, pad};
-    const rawFitScale = Math.min((state.width-pad*2)/Math.max(1,maxX-minX),(state.height-pad*2)/Math.max(1,maxY-minY));
+    const rawFitScale = mobileFit ? ((state.height-pad*2)/Math.max(1,maxY-minY)) : Math.min((state.width-pad*2)/Math.max(1,maxX-minX),(state.height-pad*2)/Math.max(1,maxY-minY));
     const fitScale = Math.max(mobileFit ? .012 : .08, rawFitScale);
     state.minScale = mobileFit ? Math.max(.012, fitScale * .55) : Math.min(1.1, fitScale);
     state.scale=Math.min(1.1, fitScale);
@@ -958,18 +983,38 @@ let graph;
     const pad = b.pad || 60;
     const contentW = (b.maxX - b.minX) * state.scale;
     const contentH = (b.maxY - b.minY) * state.scale;
-    if(contentW <= Math.max(1, state.width - pad * 2)) {
-      state.panX = (state.width - (b.minX + b.maxX) * state.scale) / 2;
+    const mobile = mobileCanvas();
+
+    // X axis clamping
+    if (contentW <= state.width - pad * 2) {
+      if (mobile) {
+        const marginX = state.width * 0.2;
+        const minPanX = marginX - b.maxX * state.scale;
+        const maxPanX = state.width - marginX - b.minX * state.scale;
+        state.panX = Math.max(minPanX, Math.min(maxPanX, state.panX));
+      } else {
+        state.panX = (state.width - (b.minX + b.maxX) * state.scale) / 2;
+      }
     } else {
       const minPan = state.width - pad - b.maxX * state.scale;
       const maxPan = pad - b.minX * state.scale;
       state.panX = Math.max(minPan, Math.min(maxPan, state.panX));
     }
-    if(contentH <= Math.max(1, state.height - pad * 2)) {
-      state.panY = (state.height - (b.minY + b.maxY) * state.scale) / 2;
+
+    // Y axis clamping
+    const yShift = mobile ? 18 : 0;
+    if (contentH <= state.height - pad * 2) {
+      if (mobile) {
+        const marginY = state.height * 0.2;
+        const minPanY = marginY - b.maxY * state.scale - yShift;
+        const maxPanY = state.height - marginY - b.minY * state.scale - yShift;
+        state.panY = Math.max(minPanY, Math.min(maxPanY, state.panY));
+      } else {
+        state.panY = (state.height - (b.minY + b.maxY) * state.scale) / 2 - yShift;
+      }
     } else {
-      const minPan = state.height - pad - b.maxY * state.scale;
-      const maxPan = pad - b.minY * state.scale;
+      const minPan = state.height - pad - b.maxY * state.scale - yShift;
+      const maxPan = pad - b.minY * state.scale - yShift;
       state.panY = Math.max(minPan, Math.min(maxPan, state.panY));
     }
   }
@@ -1043,7 +1088,7 @@ let graph;
 	    if(!n){
 	      const actorLegend = actorColorLegend();
 	      const movieLegend = movieColorLegend();
-	      detail.innerHTML = `<h2>Map Guide</h2><div class="axis-note"><div><strong>X:</strong> movies are positioned by release year.</div><div><strong>Y:</strong> collaboration groups place people and films near the actors they most often share credits with.</div><div><strong>Actors:</strong> actor positions use their collaboration group and are offset down-left from the movie layer for clearer separation.</div></div><div><label>${esc(actorLegend.label)}</label><div class="cluster-key">${actorLegend.rows}</div><div class="hint">${esc(actorLegend.hint)}</div></div><div><label>${esc(movieLegend.label)}</label><div class="cluster-key">${movieLegend.rows}</div><div class="hint">${esc(movieLegend.hint)}</div></div>`;
+	      detail.innerHTML = `<h2>Map Guide</h2><div class="axis-note"><div><strong>X:</strong> movies are positioned by release year.</div><div><strong>Y:</strong> collaboration groups place people and films near the actors they most often share credits with.</div><div><strong>Actors:</strong> actor positions use their collaboration group and are offset down-left from the movie layer for clearer separation.</div></div><div><label>${esc(actorLegend.label)}</label><div class="cluster-key">${actorLegend.rows}</div><div class="hint">${esc(actorLegend.hint)}</div></div><div><label>${esc(movieLegend.label)}</label><div class="cluster-key">${movieLegend.rows}</div><div class="hint">${esc(movieLegend.hint)}</div></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>`;
 	      return;
 	    }
     const img=imageFor(n);
@@ -1051,9 +1096,10 @@ let graph;
     const currentSort = n.type === 'movie' ? 'castOrder' : 'votes';
     const ids=selectedNeighbors(n, currentSort).slice(0,90);
     const leadTag = n.type==='actor' && isMainLeadActor(n.id) ? `<button type="button" class="pill pill-action" id="mainLeadMovies">${(leadCounts.get(n.id)||0).toLocaleString()} main-lead movies</button>` : '';
-    const sortControl = n.type === 'actor' ? `<div><label for="${esc(sortId)}">Sort Movies</label><select id="${esc(sortId)}" class="detail-sort">${detailSortOptions(n)}</select></div>` : '';
+    const sortControl = n.type === 'actor' ? `<select id="${esc(sortId)}" class="detail-sort compact-sort" aria-label="Sort movies">${detailSortOptions(n)}</select>` : '';
     const itemMeta = x => x.type === 'movie' ? movieBrief(x) : actorBrief(x, resultSort.value === 'lead');
-    detail.innerHTML=`<div class="identity">${img?`<img class="poster" src="${esc(img)}" alt="">`:''}<div><h2 title="${esc(n.label)}">${esc(shortText(n.label, 70))}</h2><div class="hint">${esc(shortText(selectedMeta(n), 90))}</div></div></div><div class="pill-row">${leadTag}${genres(n).map(g=>`<span class="pill">${esc(g)}</span>`).join('')}</div>${sortControl}<div><label>${n.type==='movie'?'Actors In This Film':'Movies With This Actor'}</label><div class="neighbor-list">${ids.map(x=>`<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}"><span class="title">${esc(shortText(x.label, 48))}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`).join('') || '<div class="hint">No connected nodes.</div>'}</div></div>`;
+    const hasControls = genres(n).length > 0 || leadTag || sortControl;
+    detail.innerHTML=`<div class="identity">${img?`<img class="poster" src="${esc(img)}" alt="">`:''}<div><h2 title="${esc(n.label)}">${esc(shortText(n.label, 70))}</h2><div class="hint">${miniMeta(n)}</div></div></div>${hasControls ? `<div class="detail-controls"><div class="header-controls">${leadTag}${sortControl}${genres(n).map(g=>`<span class="pill">${esc(g)}</span>`).join('')}</div></div>` : ''}<div class="detail-neighbors"><label>${n.type==='movie'?'Actors In This Film':'Movies With This Actor'}</label><div class="neighbor-list">${ids.map(x=>`<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}"><span class="title">${esc(shortText(x.label, 48))}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`).join('') || '<div class="hint">No connected nodes.</div>'}</div></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>`;
     const renderNeighborRows = rows => {
       const list = detail.querySelector('.neighbor-list');
       list.innerHTML = rows.map(x=>`<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}"><span class="title">${esc(shortText(x.label, 48))}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`).join('') || '<div class="hint">No connected nodes.</div>';
@@ -1067,6 +1113,23 @@ let graph;
     const leadButton = detail.querySelector('#mainLeadMovies');
     if(leadButton) leadButton.addEventListener('click',()=>renderNeighborRows(selectedNeighbors(n, 'mainLead').slice(0,90)));
     for(const b of detail.querySelectorAll('.neighbor')) b.addEventListener('click',()=>selectNode(b.dataset.id));
+    // Inject expand chevron button directly into aside.detail (above panel), not inside panel
+    const detailAside = detail.closest('aside.detail') || detail.parentElement;
+    let expandBtn = detailAside ? detailAside.querySelector('#detailExpandBtn') : null;
+    if (!expandBtn && detailAside) {
+      expandBtn = document.createElement('button');
+      expandBtn.type = 'button';
+      expandBtn.id = 'detailExpandBtn';
+      expandBtn.className = 'mini-expand-btn';
+      expandBtn.setAttribute('aria-label', 'Toggle details panel');
+      expandBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>';
+      detailAside.appendChild(expandBtn);
+    }
+    if (expandBtn) expandBtn.onclick = e => {
+      e.stopPropagation();
+      const current = document.body.dataset.panel;
+      if (window.networkSetPanel) window.networkSetPanel(current === 'mini' ? 'detail' : 'mini');
+    };
   }
 	  function drawSemanticAxes(){
 	    if(layoutMode.value !== 'semantic') return;
@@ -1128,15 +1191,22 @@ let graph;
 	    ctx.restore();
 	  }
   function draw(){
+    const _fast = mobileCanvas() && state.interacting;
     ctx.clearRect(0,0,state.width,state.height);
-    const bg=ctx.createRadialGradient(state.width*.47,state.height*.46,0,state.width*.5,state.height*.5,Math.max(state.width,state.height)*.72);
-    bg.addColorStop(0,'#09111f'); bg.addColorStop(.62,'#040812'); bg.addColorStop(1,'#02040a');
-    ctx.fillStyle=bg; ctx.fillRect(0,0,state.width,state.height);
-    drawSemanticAxes();
+    if (_fast) {
+      ctx.fillStyle = '#050a14';
+      ctx.fillRect(0,0,state.width,state.height);
+    } else {
+      const bg=ctx.createRadialGradient(state.width*.47,state.height*.46,0,state.width*.5,state.height*.5,Math.max(state.width,state.height)*.72);
+      bg.addColorStop(0,'#09111f'); bg.addColorStop(.62,'#040812'); bg.addColorStop(1,'#02040a');
+      ctx.fillStyle=bg; ctx.fillRect(0,0,state.width,state.height);
+    }
+    if (!_fast) drawSemanticAxes();
     const visibleIds = new Set(state.visibleNodes.map(n=>n.id));
     const focusId = state.hoverId || state.selectedId;
     const focus=related(focusId), hasFocus=focus.size>0;
     for(const e of state.visibleEdges){
+      if (_fast && !e.isMain) continue;
       if(!visibleIds.has(e.source)||!visibleIds.has(e.target))continue;
       if(!hasFocus && nodeMode.value==='all' && !e.isMain) {
         if (layoutMode.value === 'force' && state.scale < .22 && e.index % 4) continue;
@@ -1144,6 +1214,8 @@ let graph;
       }
       const a=state.positions.get(e.source), b=state.positions.get(e.target); if(!a||!b)continue;
       const sa=worldToScreen(a), sb=worldToScreen(b);
+      if (sa.x < -20 && sb.x < -20 || sa.x > state.width + 20 && sb.x > state.width + 20 ||
+          sa.y < -20 && sb.y < -20 || sa.y > state.height + 20 && sb.y > state.height + 20) continue;
       const active=!hasFocus || (focus.has(e.source)&&focus.has(e.target));
       const direct=hasFocus && (e.source===focusId || e.target===focusId);
       if(hasFocus && !active && layoutMode.value === 'force' && e.index % 3) continue;
@@ -1188,6 +1260,7 @@ let graph;
       const p0=state.positions.get(n.id); if(!p0)continue;
       if(!hasFocus && nodeMode.value==='all' && state.scale < .1 && n.type==='movie' && (n.degree||0) < 2) continue;
       const p=worldToScreen(p0), active=!hasFocus || focus.has(n.id), r=displayRadius(n);
+      if (p.x < -r || p.x > state.width + r || p.y < -r || p.y > state.height + r) continue;
       const full = nodeMode.value === 'all';
       const bands = layoutMode.value === 'bands';
       const force = layoutMode.value === 'force';
@@ -1198,7 +1271,7 @@ let graph;
       const idleAlpha = lowActor ? .14 : (full ? .2 : .38);
       const emphasized = n.id === focusId;
       ctx.globalAlpha=active ? (emphasized ? .92 : hasFocus && lowActor ? .28 : normalAlpha) : (hasFocus ? focusAlpha : idleAlpha);
-      if(n.type==='actor' && n.degree>=120){
+      if(!_fast && n.type==='actor' && n.degree>=120){
         const ringColor = n.degree>=150 ? '#e65d4f' : '#d7b45f';
         const halo = n.degree>=150 ? 4.5 : 3;
         ctx.save();
@@ -1212,12 +1285,12 @@ let graph;
         ctx.globalAlpha=active ? (emphasized ? .92 : hasFocus && lowActor ? .28 : normalAlpha) : (hasFocus ? focusAlpha : idleAlpha);
       }
       ctx.fillStyle=color(n);
-      ctx.shadowBlur=lowActor ? 0 : (n.type === 'movie' ? 0 : ((state.hubs.has(n.id)||n.id===state.selectedId||n.id===state.hoverId)?((force || semantic)?(hasFocus?2:3):(hasFocus?(full?2:5):(full?5:10))):(n.type==='actor'&&n.degree>=150?((force || semantic)?1.2:(full?2:4)):0)));
+      ctx.shadowBlur=_fast ? 0 : (lowActor ? 0 : (n.type === 'movie' ? 0 : ((state.hubs.has(n.id)||n.id===state.selectedId||n.id===state.hoverId)?((force || semantic)?(hasFocus?2:3):(hasFocus?(full?2:5):(full?5:10))):(n.type==='actor'&&n.degree>=150?((force || semantic)?1.2:(full?2:4)):0))));
 	      ctx.shadowColor=color(n);
 	      if(n.type==='movie'){ctx.fillRect(p.x-r*.9,p.y-r*.9,r*1.8,r*1.8);} else {ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();}
 	      ctx.shadowBlur=0;
 		      if(hasFocus && active){ctx.globalAlpha=n.id===focusId ? .85 : .42;ctx.strokeStyle=n.id===focusId?'#f1ffd6':'#cfe9ff';ctx.lineWidth=n.id===focusId?1.35:.55;ctx.beginPath();ctx.arc(p.x,p.y,r+(n.id===focusId?2.8:1.6),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
-	      const label=shouldLabel(n, active, hasFocus);
+	      const label=!_fast && shouldLabel(n, active, hasFocus);
       if(label) labels.push({n, x:p.x, y:p.y + r + 12});
       ctx.globalAlpha=1;
     }
@@ -1245,70 +1318,22 @@ let graph;
     return best;
   }
   const activePointers = new Map();
-  let pendingDraw = 0, settleTimer = 0, lastLiveDraw = 0;
+  let pendingDraw = 0, settleTimer = 0;
   function mobileCanvas(){return window.matchMedia('(max-width: 900px)').matches;}
-  function clearInteractionFrame(){state.interactionFrame=null;}
-  function captureInteractionFrame(force=false){
-    if(!mobileCanvas() || (!force && state.interactionFrame) || state.width<=0 || state.height<=0) return;
-    const snapshot=document.createElement('canvas');
-    snapshot.width=canvas.width;
-    snapshot.height=canvas.height;
-    const snapshotCtx=snapshot.getContext('2d');
-    if(!snapshotCtx) return;
-    snapshotCtx.drawImage(canvas,0,0);
-    state.interactionFrame={canvas:snapshot,width:state.width,height:state.height,scale:state.scale,panX:state.panX,panY:state.panY};
-  }
-  function needsLiveInteractionDraw(){
-    const frame=state.interactionFrame;
-    if(!frame || !frame.scale) return true;
-    const now=performance.now();
-    const scaleRatio=state.scale/frame.scale;
-    const panDelta=Math.hypot(state.panX-frame.panX,state.panY-frame.panY);
-    if(scaleRatio > 1.18 || scaleRatio < .85) return true;
-    if(panDelta > Math.max(120, state.width * .35)) return true;
-    return now - lastLiveDraw > 160;
-  }
-  function liveInteractionDraw(){
-    clearInteractionFrame();
-    draw();
-    lastLiveDraw=performance.now();
-    captureInteractionFrame(true);
-  }
-  function drawInteractionPreview(){
-    const frame=state.interactionFrame;
-    if(!mobileCanvas() || !frame || !frame.scale){draw();return;}
-    const dpr=window.devicePixelRatio||1;
-    const ratio=state.scale/frame.scale;
-    const dx=state.panX-frame.panX*ratio;
-    const dy=state.panY-frame.panY*ratio;
-    ctx.save();
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,state.width,state.height);
-    ctx.imageSmoothingEnabled=true;
-    ctx.imageSmoothingQuality='high';
-    ctx.drawImage(frame.canvas,dx,dy,frame.width*ratio,frame.height*ratio);
-    ctx.restore();
-  }
   function requestGraphDraw(final=false){
     if(final){
       if(pendingDraw){cancelAnimationFrame(pendingDraw);pendingDraw=0;}
-      clearInteractionFrame();
       draw(); return;
     }
-    if(!mobileCanvas()){draw(); return;}
     if(pendingDraw) return;
     pendingDraw=requestAnimationFrame(()=>{
       pendingDraw=0;
-      if(!state.interacting){draw();return;}
-      if(needsLiveInteractionDraw()) liveInteractionDraw();
-      else drawInteractionPreview();
+      draw();
     });
   }
   function beginInteraction(){
     if(settleTimer){clearTimeout(settleTimer);settleTimer=0;}
     if(mobileCanvas()){
-      captureInteractionFrame();
-      lastLiveDraw=performance.now();
       state.interacting=true;
     } else {
       state.interacting=false;
@@ -1317,12 +1342,11 @@ let graph;
   function endInteraction(){
     if(!state.interacting) return;
     if(settleTimer) clearTimeout(settleTimer);
-    settleTimer=setTimeout(()=>{state.interacting=false;requestGraphDraw(true);},90);
+    settleTimer=setTimeout(()=>{state.interacting=false;requestGraphDraw(true);},30);
   }
   function finishTapSelection(node){
     if(settleTimer){clearTimeout(settleTimer);settleTimer=0;}
     state.interacting=false;
-    clearInteractionFrame();
     selectNode(node ? node.id : '');
     openMobileDetail(node);
   }
@@ -1354,7 +1378,7 @@ let graph;
     return best;
   }
   function openMobileDetail(node){
-    if(node && mobileCanvas() && window.networkSetPanel) window.networkSetPanel('detail');
+    if(node && mobileCanvas() && window.networkSetPanel) window.networkSetPanel('mini');
   }
   canvas.addEventListener('pointerdown',e=>{
     e.preventDefault();
@@ -1473,7 +1497,16 @@ let graph;
     touchStart=null; touchWasPinch=false;
   },{passive:false});
   canvas.addEventListener('touchcancel',()=>{if(window.PointerEvent)return;state.drag=null;state.pinch=null;state.pinching=false;touchStart=null;touchWasPinch=false;endInteraction();},{passive:false});
-  window.addEventListener('resize',resize);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (state.width !== canvas.clientWidth || state.height !== canvas.clientHeight) {
+        resize();
+      }
+    });
+    ro.observe(canvas);
+  } else {
+    window.addEventListener('resize',resize);
+  }
   search.addEventListener('input',renderResults);
   resultSort.addEventListener('change',renderResults);
   movieColorMode.addEventListener('change',()=>{renderDetail(state.selectedId ? byId.get(state.selectedId) : null);draw();});
@@ -1505,22 +1538,37 @@ let graph;
     const button = document.querySelector('.mobile-sheetbar [data-panel="collapsed"]');
     if (button) button.textContent = panel === 'collapsed' ? 'Show Panel' : 'Expand Graph';
   };
+  let lastOpenPanel = 'list';
   const setPanel = panel => {
     const previousPanel = document.body.dataset.panel;
+    if (panel !== 'collapsed') {
+      lastOpenPanel = panel;
+    }
     document.body.dataset.panel = panel;
-    for (const control of controls) control.classList.toggle('active', control.dataset.panel === panel);
+    for (const control of controls) {
+      const match = control.dataset.panel === panel || 
+                    (control.dataset.panel === 'detail' && panel === 'mini');
+      control.classList.toggle('active', match);
+    }
     labelGraphButton(panel);
     if (previousPanel === 'collapsed' || panel === 'collapsed') {
       setTimeout(() => window.dispatchEvent(new Event('resize')), 40);
     }
   };
   window.networkSetPanel = setPanel;
-  for (const control of controls) control.addEventListener('click', () => setPanel(control.dataset.panel));
+  for (const control of controls) control.addEventListener('click', () => {
+    if (control.dataset.panel === 'collapsed') {
+      const current = document.body.dataset.panel;
+      setPanel(current === 'collapsed' ? lastOpenPanel : 'collapsed');
+    } else {
+      setPanel(control.dataset.panel);
+    }
+  });
   document.getElementById('results')?.addEventListener('click', event => {
-    if (event.target.closest('.result')) setTimeout(() => setPanel('detail'), 0);
+    if (event.target.closest('.result')) setTimeout(() => setPanel('mini'), 0);
   });
   document.getElementById('detail')?.addEventListener('click', event => {
-    if (event.target.closest('.neighbor')) setTimeout(() => setPanel('detail'), 0);
+    if (event.target.closest('.neighbor')) setTimeout(() => setPanel('mini'), 0);
   });
   document.getElementById('search')?.addEventListener('focus', () => {
     if (window.matchMedia('(max-width: 900px)').matches) setPanel('list');
