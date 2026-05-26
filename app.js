@@ -15,6 +15,11 @@ let graph;
   }
   async function bootNetworkApp() {
     graph = await loadNetworkGraph();
+    const loader = document.getElementById('graphLoader');
+    if (loader) {
+      loader.classList.add('fade-out');
+      setTimeout(() => loader.remove(), 400);
+    }
   const canvas = document.getElementById('network'), ctx = canvas.getContext('2d');
   const search = document.getElementById('search'), resultSortWrap = document.getElementById('resultSortWrap'), resultSort = document.getElementById('resultSort'), layoutMode = document.getElementById('layoutMode'), semanticYMode = document.getElementById('semanticYMode'), actorColorMode = document.getElementById('actorColorMode'), movieColorMode = document.getElementById('movieColorMode'), edgeMode = document.getElementById('edgeMode'), actorOffsetX = document.getElementById('actorOffsetX'), actorOffsetXValue = document.getElementById('actorOffsetXValue'), actorOffsetY = document.getElementById('actorOffsetY'), actorOffsetYValue = document.getElementById('actorOffsetYValue'), nodeMode = document.getElementById('nodeMode'), nodeTypeMode = document.getElementById('nodeTypeMode'), minActorFilms = document.getElementById('minActorFilms'), minMovieVotes = document.getElementById('minMovieVotes'), minMovieRating = document.getElementById('minMovieRating'), hubLimit = document.getElementById('hubLimit');
   const results = document.getElementById('results'), detail = document.getElementById('detail');
@@ -1528,6 +1533,8 @@ let graph;
     console.error(error);
     const detail = document.getElementById('detail');
     if (detail) detail.innerHTML = `<h2>Could not load network data</h2><div class="hint">Host this folder through a static web server so data/graph.json can be fetched.</div>`;
+    const loader = document.getElementById('graphLoader');
+    if (loader) loader.remove();
   });
 
 

@@ -585,6 +585,49 @@
       }
     }
 
+    /* Graph Loader Styles */
+    .graph-loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #02040a;
+      z-index: 10;
+      opacity: 1;
+      transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .graph-loader.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .graph-loader .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(255, 255, 255, 0.08);
+      border-top-color: var(--cyan, #bdbdbd);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+    }
+    .graph-loader .loader-text {
+      color: var(--muted, #9ba3b2);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+
   </style>
 </head>
 <body data-panel="list">
@@ -630,6 +673,10 @@
       </div>
     </aside>
     <main class="stage" id="graphStage">
+      <div id="graphLoader" class="graph-loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Loading constellation map...</div>
+      </div>
       <canvas id="network"></canvas>
     </main>
     <aside class="detail" id="detailPanel"><div class="panel" id="detail"></div></aside>
