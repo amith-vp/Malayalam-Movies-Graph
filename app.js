@@ -2,14 +2,14 @@ let graph;
   async function loadNetworkGraph() {
     if ('DecompressionStream' in window) {
       try {
-        const gz = await fetch('data/graph.json.gz', {cache:'force-cache'});
+        const gz = await fetch('data/graph.json.gz?t=1779824742', {cache:'no-cache'});
         if (gz.ok && gz.body) {
           const stream = gz.body.pipeThrough(new DecompressionStream('gzip'));
           return await new Response(stream).json();
         }
       } catch (_) {}
     }
-    const response = await fetch('data/graph.json', {cache:'force-cache'});
+    const response = await fetch('data/graph.json?t=1779824742', {cache:'no-cache'});
     if (!response.ok) throw new Error(`graph.json ${response.status}`);
     return await response.json();
   }
@@ -1104,10 +1104,17 @@ let graph;
     const sortControl = n.type === 'actor' ? `<select id="${esc(sortId)}" class="detail-sort compact-sort" aria-label="Sort movies">${detailSortOptions(n)}</select>` : '';
     const itemMeta = x => x.type === 'movie' ? movieBrief(x) : actorBrief(x, resultSort.value === 'lead');
     const hasControls = genres(n).length > 0 || leadTag || sortControl;
-    detail.innerHTML=`<div class="identity">${img?`<img class="poster" src="${esc(img)}" alt="">`:''}<div><h2 title="${esc(n.label)}">${esc(shortText(n.label, 70))}</h2><div class="hint">${miniMeta(n)}</div></div></div>${hasControls ? `<div class="detail-controls"><div class="header-controls">${leadTag}${sortControl}${genres(n).map(g=>`<span class="pill">${esc(g)}</span>`).join('')}</div></div>` : ''}<div class="detail-neighbors"><label>${n.type==='movie'?'Actors In This Film':'Movies With This Actor'}</label><div class="neighbor-list">${ids.map(x=>`<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}"><span class="title">${esc(shortText(x.label, 48))}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`).join('') || '<div class="hint">No connected nodes.</div>'}</div></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>`;
+    const neighborRowHTML = x => {
+      const actorId = n.type === 'actor' ? n.id : x.id;
+      const movieId = n.type === 'movie' ? n.id : x.id;
+      const edge = (actorToEdges.get(actorId) || []).find(e => e.target === movieId);
+      const charLabel = (edge && edge.characters) ? ` (${edge.characters})` : '';
+      return `<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}${esc(charLabel)}"><span class="title">${esc(shortText(x.label, 48))}${esc(charLabel)}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`;
+    };
+    detail.innerHTML=`<div class="identity">${img?`<img class="poster" src="${esc(img)}" alt="">`:''}<div><h2 title="${esc(n.label)}">${esc(shortText(n.label, 70))}</h2><div class="hint">${miniMeta(n)}</div></div></div>${hasControls ? `<div class="detail-controls"><div class="header-controls">${leadTag}${sortControl}${genres(n).map(g=>`<span class="pill">${esc(g)}</span>`).join('')}</div></div>` : ''}<div class="detail-neighbors"><label>${n.type==='movie'?'Actors In This Film':'Movies With This Actor'}</label><div class="neighbor-list">${ids.map(neighborRowHTML).join('') || '<div class="hint">No connected nodes.</div>'}</div></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>`;
     const renderNeighborRows = rows => {
       const list = detail.querySelector('.neighbor-list');
-      list.innerHTML = rows.map(x=>`<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}"><span class="title">${esc(shortText(x.label, 48))}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`).join('') || '<div class="hint">No connected nodes.</div>';
+      list.innerHTML = rows.map(neighborRowHTML).join('') || '<div class="hint">No connected nodes.</div>';
       for(const b of list.querySelectorAll('.neighbor')) b.addEventListener('click',()=>selectNode(b.dataset.id));
     };
     const detailSort = detail.querySelector('.detail-sort');
