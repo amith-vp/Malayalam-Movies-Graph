@@ -2,14 +2,14 @@ let graph;
   async function loadNetworkGraph() {
     if ('DecompressionStream' in window) {
       try {
-        const gz = await fetch('data/graph.json.gz?t=1779824742', {cache:'no-cache'});
+        const gz = await fetch('data/graph.json.gz?t=1779894321', {cache:'no-cache'});
         if (gz.ok && gz.body) {
           const stream = gz.body.pipeThrough(new DecompressionStream('gzip'));
           return await new Response(stream).json();
         }
       } catch (_) {}
     }
-    const response = await fetch('data/graph.json?t=1779824742', {cache:'no-cache'});
+    const response = await fetch('data/graph.json?t=1779894321', {cache:'no-cache'});
     if (!response.ok) throw new Error(`graph.json ${response.status}`);
     return await response.json();
   }
@@ -219,7 +219,6 @@ let graph;
     return actorRoleColors[actorRole(n)] || actorRoleColors.smaller;
   }
   function color(n){
-    if(n.id===state.selectedId)return '#e9ff7f';
     if(n.type==='movie')return movieColor(n);
     return actorColor(n);
   }
@@ -244,9 +243,52 @@ let graph;
     const base = Math.max(minRadius, radius(n) * (spatial && n.type === 'actor' ? .96 : 1) * scaleFactor);
     return isLowFilmActor(n) ? Math.max(.55, base * .62) : base;
   }
+  function buildFocusLabelRanks(){
+    if(!state.selectedId) return null;
+    const selected = byId.get(state.selectedId);
+    if(!selected) return null;
+    const ranks = new Map();
+    if(selected.type === 'actor') {
+      (actorMovies.get(selected.id) || [])
+        .map(id => byId.get(id))
+        .filter(Boolean)
+        .sort((a,b)=>Number(b.vote_count||0)-Number(a.vote_count||0) || Number(b.rating||0)-Number(a.rating||0) || String(a.label).localeCompare(String(b.label)))
+        .forEach((node, index) => ranks.set(node.id, index));
+      return ranks;
+    }
+    if(selected.type === 'movie') {
+      (movieToEdges.get(selected.id) || [])
+        .map(e => ({node:byId.get(e.source), order:e.order || 999999}))
+        .filter(row => row.node)
+        .sort((a,b)=>a.order-b.order || String(a.node.label).localeCompare(String(b.node.label)))
+        .forEach((row, index) => ranks.set(row.node.id, index));
+      return ranks;
+    }
+    return null;
+  }
   function shouldLabel(n, active, hasFocus){
     if(!active) return false;
     if(n.id === state.selectedId || n.id === state.hoverId) return true;
+    if(state.selectedId) {
+      const selected = byId.get(state.selectedId);
+      const rank = state.focusLabelRanks?.get(n.id);
+      if(!selected || rank === undefined) return false;
+      const z = state.scale;
+      if(selected.type === 'actor') {
+        if(n.type !== 'movie') return false;
+        if(rank < 14) return true;
+        if(rank < 32) return z > .16;
+        if(rank < 70) return z > .3;
+        if(rank < 140) return z > .56;
+        return z > .9;
+      }
+      if(selected.type === 'movie') {
+        if(n.type !== 'actor') return false;
+        if(rank < 12) return true;
+        if(rank < 28) return z > .24;
+        return z > .58;
+      }
+    }
     const z = state.scale;
     if(n.type === 'movie') {
       const votes = Number(n.vote_count || 0);
@@ -1215,7 +1257,10 @@ let graph;
     }
     if (!_fast) drawSemanticAxes();
     const visibleIds = new Set(state.visibleNodes.map(n=>n.id));
-    const focusId = state.hoverId || state.selectedId;
+    const focusId = state.selectedId || state.hoverId;
+    const selectedFocus = Boolean(state.selectedId);
+    const selectedActorFocus = selectedFocus && byId.get(state.selectedId)?.type === 'actor';
+    state.focusLabelRanks = selectedFocus ? buildFocusLabelRanks() : null;
     const focus=related(focusId), hasFocus=focus.size>0;
     for(const e of state.visibleEdges){
       if (_fast && !e.isMain) continue;
@@ -1240,12 +1285,20 @@ let graph;
       const force = layoutMode.value === 'force';
       const semantic = layoutMode.value === 'semantic';
       let alpha = hasFocus
-        ? (direct ? (e.isMain ? .56 : .36) : active ? (e.isMain ? .24 : .13) : .026)
+        ? (direct
+          ? (selectedFocus ? (e.isMain ? .82 : .58) : (e.isMain ? .5 : .32))
+          : active
+            ? (selectedFocus ? (e.isMain ? .34 : .22) : (e.isMain ? .2 : .11))
+            : (selectedFocus ? .006 : .014))
         : (semantic ? (e.isMain?.12:.028) : force ? (e.isMain?.12:.032) : bands ? (e.isMain?.2:.085) : full ? (e.isMain?.09:.035) : (e.isMain?.22:.105));
       if(lowActorEdge && !lowActorFocused) alpha *= hasFocus && active ? .48 : .34;
       ctx.strokeStyle=rgba(c, alpha);
       let lineWidth=hasFocus
-        ? (direct ? (e.isMain ? 1.35 : .9) : active ? (e.isMain ? .72 : .44) : .2)
+        ? (direct
+          ? (selectedFocus ? (e.isMain ? 1.85 : 1.25) : (e.isMain ? 1.25 : .82))
+          : active
+            ? (selectedFocus ? (e.isMain ? .9 : .58) : (e.isMain ? .68 : .4))
+            : (selectedFocus ? .12 : .2))
         : (semantic ? (e.isMain?.38:.16) : force ? (e.isMain?.42:.18) : bands ? (e.isMain?.62:.34) : full ? (e.isMain?.42:.22) : (e.isMain?.7:.44));
       if(lowActorEdge && !lowActorFocused) lineWidth *= hasFocus && active ? .74 : .68;
       ctx.lineWidth=lineWidth;
@@ -1279,29 +1332,45 @@ let graph;
       const semantic = layoutMode.value === 'semantic';
       const lowActor = isLowFilmActor(n);
       const normalAlpha = lowActor ? ((force || semantic) ? .18 : .24) : ((force || semantic) && full ? (n.type==='movie' ? .54 : (state.hubs.has(n.id) ? .86 : .74)) : (full && n.type==='movie' ? (bands ? .9 : .8) : .94));
-      const focusAlpha = lowActor ? .26 : (full ? .16 : .22);
+      const focusAlpha = selectedFocus
+        ? (lowActor ? .055 : (n.type === 'movie' ? .05 : .07))
+        : (lowActor ? .1 : (n.type === 'movie' ? .1 : .13));
       const idleAlpha = lowActor ? .14 : (full ? .2 : .38);
       const emphasized = n.id === focusId;
-      ctx.globalAlpha=active ? (emphasized ? .92 : hasFocus && lowActor ? .28 : normalAlpha) : (hasFocus ? focusAlpha : idleAlpha);
+      const connectedMovieHighlight = selectedActorFocus && n.type === 'movie' && focus.has(n.id);
+      const selectedActorMarker = selectedActorFocus && n.id === state.selectedId;
+      ctx.globalAlpha=active
+        ? (connectedMovieHighlight ? .98
+          : selectedActorMarker ? .68
+          : emphasized ? 1
+          : hasFocus && lowActor ? (selectedFocus ? .42 : .28)
+          : (selectedFocus ? Math.max(.84, normalAlpha) : normalAlpha))
+        : (hasFocus ? focusAlpha : idleAlpha);
       if(!_fast && n.type==='actor' && n.degree>=120){
         const ringColor = n.degree>=150 ? '#e65d4f' : '#d7b45f';
         const halo = n.degree>=150 ? 4.5 : 3;
         ctx.save();
-        ctx.globalAlpha=active ? (full ? ((force || semantic) ? .055 : bands ? .1 : .075) : (n.degree>=150 ? .14 : .1)) : (hasFocus ? .035 : .04);
+        ctx.globalAlpha=active ? (full ? ((force || semantic) ? (selectedFocus ? .035 : .055) : bands ? .1 : .075) : (n.degree>=150 ? .14 : .1)) : (hasFocus ? (selectedFocus ? .012 : .035) : .04);
         ctx.strokeStyle=ringColor;
         ctx.lineWidth=n.degree>=150 ? 1.4 : .9;
         ctx.shadowBlur=halo;
         ctx.shadowColor=ringColor;
         ctx.beginPath(); ctx.arc(p.x,p.y,r+halo*.9,0,Math.PI*2); ctx.stroke();
         ctx.restore();
-        ctx.globalAlpha=active ? (emphasized ? .92 : hasFocus && lowActor ? .28 : normalAlpha) : (hasFocus ? focusAlpha : idleAlpha);
+        ctx.globalAlpha=active
+          ? (connectedMovieHighlight ? .98
+            : selectedActorMarker ? .68
+            : emphasized ? 1
+            : hasFocus && lowActor ? (selectedFocus ? .42 : .28)
+            : (selectedFocus ? Math.max(.84, normalAlpha) : normalAlpha))
+          : (hasFocus ? focusAlpha : idleAlpha);
       }
       ctx.fillStyle=color(n);
       ctx.shadowBlur=_fast ? 0 : (lowActor ? 0 : (n.type === 'movie' ? 0 : ((state.hubs.has(n.id)||n.id===state.selectedId||n.id===state.hoverId)?((force || semantic)?(hasFocus?2:3):(hasFocus?(full?2:5):(full?5:10))):(n.type==='actor'&&n.degree>=150?((force || semantic)?1.2:(full?2:4)):0))));
 	      ctx.shadowColor=color(n);
 	      if(n.type==='movie'){ctx.fillRect(p.x-r*.9,p.y-r*.9,r*1.8,r*1.8);} else {ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();}
 	      ctx.shadowBlur=0;
-		      if(hasFocus && active){ctx.globalAlpha=n.id===focusId ? .85 : .42;ctx.strokeStyle=n.id===focusId?'#f1ffd6':'#cfe9ff';ctx.lineWidth=n.id===focusId?1.35:.55;ctx.beginPath();ctx.arc(p.x,p.y,r+(n.id===focusId?2.8:1.6),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
+		      if(hasFocus && active && !connectedMovieHighlight){ctx.globalAlpha=n.id===focusId ? .72 : .34;ctx.strokeStyle=n.id===focusId?'#f1ffd6':'#cfe9ff';ctx.lineWidth=n.id===focusId?1.05:.45;ctx.beginPath();ctx.arc(p.x,p.y,r+(n.id===focusId?2.1:1.3),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;}
 	      const label=!_fast && shouldLabel(n, active, hasFocus);
       if(label) labels.push({n, x:p.x, y:p.y + r + 12});
       ctx.globalAlpha=1;
@@ -1356,9 +1425,12 @@ let graph;
     if(settleTimer) clearTimeout(settleTimer);
     settleTimer=setTimeout(()=>{state.interacting=false;requestGraphDraw(true);},30);
   }
-  function finishTapSelection(node){
+  function finishTapSelection(node, e){
     if(settleTimer){clearTimeout(settleTimer);settleTimer=0;}
     state.interacting=false;
+    if(!node && e && e.button !== undefined && e.button !== 0) {
+      return;
+    }
     selectNode(node ? node.id : '');
     openMobileDetail(node);
   }
@@ -1440,7 +1512,7 @@ let graph;
       endInteraction();
     }
     if(wasClick){
-      finishTapSelection(clicked);
+      finishTapSelection(clicked, e);
     }
   });
   canvas.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);state.drag=null;state.pinch=null;state.pinching=false;if(!activePointers.size)endInteraction();});
@@ -1504,7 +1576,7 @@ let graph;
     const wasClick=changed && !touchWasPinch && touchStart && Math.hypot(changed.x-touchStart.x,changed.y-touchStart.y)<22;
     const clicked=wasClick?nearestTouch(changed.x,changed.y):null;
     state.drag=null; state.pinch=null; state.pinching=false;
-    if(wasClick){finishTapSelection(clicked);}
+    if(wasClick){finishTapSelection(clicked, e);}
     else endInteraction();
     touchStart=null; touchWasPinch=false;
   },{passive:false});
