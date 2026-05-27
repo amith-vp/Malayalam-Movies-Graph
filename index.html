@@ -150,6 +150,89 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
       transform: translateY(-1px);
     }
+
+    .result, .neighbor {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 28px;
+      align-items: center;
+      column-gap: 8px;
+    }
+
+    .row-main {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .compare-add {
+      width: 28px !important;
+      min-width: 28px !important;
+      min-height: 28px !important;
+      height: 28px !important;
+      padding: 0 !important;
+      border-radius: 50% !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      color: #dceaf2 !important;
+      background: rgba(255,255,255,.045) !important;
+    }
+
+    .compare-add.active {
+      color: #031014 !important;
+      background: #72d7e8 !important;
+      border-color: rgba(114,215,232,.8) !important;
+    }
+
+    .compare-tray {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 10px;
+    }
+
+    .compare-tray:empty {
+      display: none;
+    }
+
+    .compare-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .compare-clear {
+      width: auto !important;
+      min-height: 24px !important;
+      padding: 2px 8px !important;
+      font-size: 11px !important;
+      border-radius: 999px !important;
+    }
+
+    .compare-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .compare-chip {
+      width: auto !important;
+      min-height: 26px !important;
+      padding: 3px 8px !important;
+      border-radius: 999px !important;
+      display: inline-flex !important;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px !important;
+      background: rgba(114,215,232,.1) !important;
+      border-color: rgba(114,215,232,.28) !important;
+    }
     
     .stat {
       background: rgba(255, 255, 255, 0.03) !important;
@@ -681,6 +764,6 @@
     </main>
     <aside class="detail" id="detailPanel"><div class="panel" id="detail"></div></aside>
   </div>
-  <script src="app.js?t=1779894321" defer></script>
+  <script src="app.js?t=1779895506" defer></script>
 </body>
 </html>

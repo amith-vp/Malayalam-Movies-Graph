@@ -2,14 +2,14 @@ let graph;
   async function loadNetworkGraph() {
     if ('DecompressionStream' in window) {
       try {
-        const gz = await fetch('data/graph.json.gz?t=1779894321', {cache:'no-cache'});
+        const gz = await fetch('data/graph.json.gz?t=1779895506', {cache:'no-cache'});
         if (gz.ok && gz.body) {
           const stream = gz.body.pipeThrough(new DecompressionStream('gzip'));
           return await new Response(stream).json();
         }
       } catch (_) {}
     }
-    const response = await fetch('data/graph.json?t=1779894321', {cache:'no-cache'});
+    const response = await fetch('data/graph.json?t=1779895506', {cache:'no-cache'});
     if (!response.ok) throw new Error(`graph.json ${response.status}`);
     return await response.json();
   }
@@ -47,7 +47,7 @@ let graph;
   graph.edges.forEach(e => { if (!e.isMain) e.isMain = false; });
   const actorMovies = new Map(actors.map(a => [a.id, actorToEdges.get(a.id).map(e => e.target)]));
   const movieActors = new Map(movies.map(m => [m.id, movieToEdges.get(m.id).map(e => e.source)]));
-  const state = { width:0,height:0,scale:1,minScale:.06,panX:0,panY:0,bounds:null,positions:new Map(),cluster:new Map(),hubs:new Set(),visibleNodes:graph.nodes,visibleEdges:graph.edges,selectedId:'',hoverId:'',drag:null,pointer:{x:0,y:0},layoutSeed:1 };
+  const state = { width:0,height:0,scale:1,minScale:.06,panX:0,panY:0,bounds:null,positions:new Map(),cluster:new Map(),hubs:new Set(),visibleNodes:graph.nodes,visibleEdges:graph.edges,selectedId:'',hoverId:'',compareIds:new Set(),compareFocus:null,compareCommon:new Set(),drag:null,pointer:{x:0,y:0},layoutSeed:1 };
   const actorVoteScores = new Map(actors.map(a => {
     let total=0, count=0, leadTotal=0, leadCount=0;
     for(const mid of actorMovies.get(a.id) || []) {
@@ -222,7 +222,7 @@ let graph;
     if(n.type==='movie')return movieColor(n);
     return actorColor(n);
   }
-  function isLowFilmActor(n){return n.type==='actor' && (n.degree || 0) < 5 && !state.hubs.has(n.id);}
+  function isLowFilmActor(n){return !!n && n.type==='actor' && (n.degree || 0) < 5 && !state.hubs.has(n.id);}
   function rgba(hex,a){const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
   function radius(n){
     if(n.type==='movie') {
@@ -268,6 +268,7 @@ let graph;
   }
   function shouldLabel(n, active, hasFocus){
     if(!active) return false;
+    if(state.compareFocus && (state.compareIds.has(n.id) || state.compareCommon.has(n.id))) return true;
     if(n.id === state.selectedId || n.id === state.hoverId) return true;
     if(state.selectedId) {
       const selected = byId.get(state.selectedId);
@@ -367,6 +368,66 @@ let graph;
     const s = new Set(); if(!id) return s; s.add(id);
     for (const e of state.visibleEdges) { if(e.source===id)s.add(e.target); if(e.target===id)s.add(e.source); }
     return s;
+  }
+  function compareNeighborSet(id){
+    const n = byId.get(id);
+    if(!n) return new Set();
+    if(n.type === 'actor') return new Set(actorMovies.get(id) || []);
+    if(n.type === 'movie') return new Set(movieActors.get(id) || []);
+    return new Set();
+  }
+  function compareFocusSet(){
+    const ids = [...state.compareIds].filter(id => byId.has(id));
+    if(ids.length < 2) return null;
+    let common = null;
+    for(const id of ids){
+      const next = compareNeighborSet(id);
+      common = common === null ? next : new Set([...common].filter(item => next.has(item)));
+    }
+    state.compareCommon = common || new Set();
+    const focus = new Set(ids);
+    for(const id of state.compareCommon) focus.add(id);
+    return focus;
+  }
+  function compareButtonHTML(id){
+    const active = state.compareIds.has(id);
+    return `<button type="button" class="compare-add ${active?'active':''}" data-compare-id="${esc(id)}" aria-label="${active?'Remove from':'Add to'} compare" aria-pressed="${active?'true':'false'}">${active?'×':'+'}</button>`;
+  }
+  function rowHTML(n, cls){
+    const active = n.id === state.selectedId ? ' active' : '';
+    return `<div class="${cls}${active}" role="button" tabindex="0" data-id="${esc(n.id)}" title="${esc(n.label)}"><span class="row-main"><span class="title">${esc(shortText(n.label, 48))}</span><span class="sub">${esc(shortText(cls === 'result' ? resultMeta(n) : (n.type === 'movie' ? movieBrief(n) : actorBrief(n, resultSort.value === 'lead')), 64))}</span></span>${compareButtonHTML(n.id)}</div>`;
+  }
+  function renderCompareTray(){
+    let tray = document.getElementById('compareTray');
+    if(!tray && results){
+      tray = document.createElement('div');
+      tray.id = 'compareTray';
+      tray.className = 'compare-tray';
+      results.parentElement.insertBefore(tray, results);
+    }
+    if(!tray) return;
+    const ids = [...state.compareIds].filter(id => byId.has(id));
+    if(!ids.length){ tray.innerHTML = ''; return; }
+    if(ids.length >= 2) compareFocusSet();
+    const commonCount = ids.length >= 2 ? compareNeighborSet(ids[0]).size && (state.compareCommon?.size ?? 0) : 0;
+    tray.innerHTML = `<div class="compare-head"><span>Compare ${ids.length}${ids.length>=2 ? ` / common ${commonCount}` : ''}</span><button type="button" class="compare-clear" id="compareClear">Clear</button></div><div class="compare-chips">${ids.map(id => `<button type="button" class="compare-chip" data-compare-id="${esc(id)}">${esc(shortText(byId.get(id)?.label || id, 28))}<span>×</span></button>`).join('')}</div>`;
+    tray.querySelector('#compareClear')?.addEventListener('click',()=>{state.compareIds.clear();state.compareCommon=new Set();renderResults();renderDetail(state.selectedId ? byId.get(state.selectedId) : null);draw();});
+    for(const chip of tray.querySelectorAll('.compare-chip')) chip.addEventListener('click',()=>toggleCompare(chip.dataset.compareId));
+  }
+  function toggleCompare(id){
+    if(!id) return;
+    if(state.compareIds.has(id)) state.compareIds.delete(id); else state.compareIds.add(id);
+    renderResults();
+    renderDetail(state.selectedId ? byId.get(state.selectedId) : null);
+    draw();
+  }
+  function bindRowClicks(root){
+    for(const add of root.querySelectorAll('.compare-add')) add.addEventListener('click',event=>{event.stopPropagation();toggleCompare(add.dataset.compareId);});
+    for(const row of root.querySelectorAll('.result,.neighbor')){
+      const go=()=>selectNode(row.dataset.id);
+      row.addEventListener('click',event=>{if(event.target.closest('.compare-add'))return;go();});
+      row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();go();}});
+    }
   }
   function leadHubActors(){
     return actors
@@ -1107,8 +1168,9 @@ let graph;
       rows=sortNodes([...rows], resultSort.value);
     }
     rows=rows.slice(0,44);
-    results.innerHTML=rows.map(n=>`<button class="result ${n.id===state.selectedId?'active':''}" data-id="${esc(n.id)}" title="${esc(n.label)}"><span class="title">${esc(shortText(n.label, 48))}</span><span class="sub">${esc(shortText(resultMeta(n), 64))}</span></button>`).join('');
-    for(const b of results.querySelectorAll('.result')) b.addEventListener('click',()=>selectNode(b.dataset.id));
+    renderCompareTray();
+    results.innerHTML=rows.map(n=>rowHTML(n, 'result')).join('');
+    bindRowClicks(results);
   }
   function selectNode(id){state.selectedId=id; renderResults(); renderDetail(id ? byId.get(id) : null); draw();}
   function detailSortOptions(n){
@@ -1151,13 +1213,13 @@ let graph;
       const movieId = n.type === 'movie' ? n.id : x.id;
       const edge = (actorToEdges.get(actorId) || []).find(e => e.target === movieId);
       const charLabel = (edge && edge.characters) ? ` (${edge.characters})` : '';
-      return `<button class="neighbor" data-id="${esc(x.id)}" title="${esc(x.label)}${esc(charLabel)}"><span class="title">${esc(shortText(x.label, 48))}${esc(charLabel)}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></button>`;
+      return `<div class="neighbor" role="button" tabindex="0" data-id="${esc(x.id)}" title="${esc(x.label)}${esc(charLabel)}"><span class="row-main"><span class="title">${esc(shortText(x.label, 48))}${esc(charLabel)}</span><span class="sub">${esc(shortText(itemMeta(x), 64))}</span></span>${compareButtonHTML(x.id)}</div>`;
     };
     detail.innerHTML=`<div class="identity">${img?`<img class="poster" src="${esc(img)}" alt="">`:''}<div><h2 title="${esc(n.label)}">${esc(shortText(n.label, 70))}</h2><div class="hint">${miniMeta(n)}</div></div></div>${hasControls ? `<div class="detail-controls"><div class="header-controls">${leadTag}${sortControl}${genres(n).map(g=>`<span class="pill">${esc(g)}</span>`).join('')}</div></div>` : ''}<div class="detail-neighbors"><label>${n.type==='movie'?'Actors In This Film':'Movies With This Actor'}</label><div class="neighbor-list">${ids.map(neighborRowHTML).join('') || '<div class="hint">No connected nodes.</div>'}</div></div><div class="tmdb-attribution">Posters and profiles via TMDb.</div>`;
     const renderNeighborRows = rows => {
       const list = detail.querySelector('.neighbor-list');
       list.innerHTML = rows.map(neighborRowHTML).join('') || '<div class="hint">No connected nodes.</div>';
-      for(const b of list.querySelectorAll('.neighbor')) b.addEventListener('click',()=>selectNode(b.dataset.id));
+      bindRowClicks(list);
     };
     const detailSort = detail.querySelector('.detail-sort');
     if(detailSort) detailSort.addEventListener('change',()=>{
@@ -1166,7 +1228,7 @@ let graph;
     });
     const leadButton = detail.querySelector('#mainLeadMovies');
     if(leadButton) leadButton.addEventListener('click',()=>renderNeighborRows(selectedNeighbors(n, 'mainLead').slice(0,90)));
-    for(const b of detail.querySelectorAll('.neighbor')) b.addEventListener('click',()=>selectNode(b.dataset.id));
+    bindRowClicks(detail);
     // Inject expand chevron button directly into aside.detail (above panel), not inside panel
     const detailAside = detail.closest('aside.detail') || detail.parentElement;
     let expandBtn = detailAside ? detailAside.querySelector('#detailExpandBtn') : null;
@@ -1257,11 +1319,14 @@ let graph;
     }
     if (!_fast) drawSemanticAxes();
     const visibleIds = new Set(state.visibleNodes.map(n=>n.id));
-    const focusId = state.selectedId || state.hoverId;
-    const selectedFocus = Boolean(state.selectedId);
-    const selectedActorFocus = selectedFocus && byId.get(state.selectedId)?.type === 'actor';
-    state.focusLabelRanks = selectedFocus ? buildFocusLabelRanks() : null;
-    const focus=related(focusId), hasFocus=focus.size>0;
+    const compareFocus = compareFocusSet();
+    state.compareFocus = compareFocus;
+    const compareMode = Boolean(compareFocus);
+    const focusId = compareMode ? '' : (state.selectedId || state.hoverId);
+    const selectedFocus = compareMode || Boolean(state.selectedId);
+    const selectedActorFocus = !compareMode && selectedFocus && byId.get(state.selectedId)?.type === 'actor';
+    state.focusLabelRanks = selectedFocus && !compareMode ? buildFocusLabelRanks() : null;
+    const focus=compareFocus || related(focusId), hasFocus=focus.size>0;
     for(const e of state.visibleEdges){
       if (_fast && !e.isMain) continue;
       if(!visibleIds.has(e.source)||!visibleIds.has(e.target))continue;
@@ -1274,7 +1339,7 @@ let graph;
       if (sa.x < -20 && sb.x < -20 || sa.x > state.width + 20 && sb.x > state.width + 20 ||
           sa.y < -20 && sb.y < -20 || sa.y > state.height + 20 && sb.y > state.height + 20) continue;
       const active=!hasFocus || (focus.has(e.source)&&focus.has(e.target));
-      const direct=hasFocus && (e.source===focusId || e.target===focusId);
+      const direct=hasFocus && (compareMode ? active : (e.source===focusId || e.target===focusId));
       if(hasFocus && !active && layoutMode.value === 'force' && e.index % 3) continue;
       const c=hasFocus && active ? (e.isMain ? '#2399aa' : '#58d5e8') : (e.isMain?'#58d5e8':'#778395');
       const lowActorEdge = isLowFilmActor(byId.get(e.source)) || isLowFilmActor(byId.get(e.target));
@@ -1338,9 +1403,13 @@ let graph;
       const idleAlpha = lowActor ? .14 : (full ? .2 : .38);
       const emphasized = n.id === focusId;
       const connectedMovieHighlight = selectedActorFocus && n.type === 'movie' && focus.has(n.id);
+      const compareCommonHighlight = compareMode && state.compareCommon.has(n.id);
+      const compareSeedMarker = compareMode && state.compareIds.has(n.id);
       const selectedActorMarker = selectedActorFocus && n.id === state.selectedId;
       ctx.globalAlpha=active
-        ? (connectedMovieHighlight ? .98
+        ? (compareCommonHighlight ? .98
+          : compareSeedMarker ? .68
+          : connectedMovieHighlight ? .98
           : selectedActorMarker ? .68
           : emphasized ? 1
           : hasFocus && lowActor ? (selectedFocus ? .42 : .28)
@@ -1358,7 +1427,9 @@ let graph;
         ctx.beginPath(); ctx.arc(p.x,p.y,r+halo*.9,0,Math.PI*2); ctx.stroke();
         ctx.restore();
         ctx.globalAlpha=active
-          ? (connectedMovieHighlight ? .98
+          ? (compareCommonHighlight ? .98
+            : compareSeedMarker ? .68
+            : connectedMovieHighlight ? .98
             : selectedActorMarker ? .68
             : emphasized ? 1
             : hasFocus && lowActor ? (selectedFocus ? .42 : .28)
